@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stress Test Dashboard — Live Corporate View</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+    font-family: 'Inter', sans-serif;
+    margin: 0; padding: 0;
+    background: #f4f6fb;
+    color: #11436b;
+}
+header {
+    background: #1f6feb;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+.container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+.cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.card {
+    flex: 1 1 220px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.card h2 { margin: 0; font-size: 2rem; color: #1f6feb; }
+.card p { margin: 5px 0 0; font-weight: 500; color: #333; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 30px;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+th, td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #e6eef7;
+}
+th { background: #f1f7ff; font-weight: 600; color: #11436b; }
+tbody tr:hover { background: #f9fbff; }
+
+button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    background: #1f6feb;
+    color: white;
+    cursor: pointer;
+    margin-top: 20px;
+}
+button:hover { background: #155bb5; }
+
+.chart-container {
+    margin-top: 40px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+</style>
+</head>
+<body>
+<header>Stress Test Dashboard — Live Updates</header>
+<div class="container">
+    <div class="cards">
+        <div class="card">
+            <h2 id="totalSubmissions">0</h2>
+            <p>Total Submissions</p>
+        </div>
+        <div class="card">
+            <h2 id="avgStress">0%</h2>
+            <p>Average Stress</p>
+        </div>
+        <div class="card">
+            <h2 id="genderDistribution">0</h2>
+            <p>Gender Count</p>
+        </div>
+        <div class="card">
+            <h2 id="ageDistribution">0</h2>
+            <p>Age Groups</p>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="stressChart" height="100"></canvas>
+    </div>
+
+    <div style="text-align:center;">
+        <button id="downloadBtn">📥 Download CSV</button>
+    </div>
+
+    <table id="submissionsTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Gender</th>
+                <th>Age Group</th>
+                <th>Stress %</th>
+                <th>Category</th>
+                <th>Submitted At</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDvYmVBsufaspOcfHNOASnhprlgxMZb8_I",
+  authDomain: "stresstestdb.firebaseapp.com",
+  projectId: "stresstestdb",
+  storageBucket: "stresstestdb.firebasestorage.app",
+  messagingSenderId: "770106837788",
+  appId: "1:770106837788:web:656424276d7a20833308d9",
+  measurementId: "G-NKBVWEXGD9"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const collectionRef = collection(db, "stressTestResults");
+
+const tableBody = document.querySelector("#submissionsTable tbody");
+let submissionsData = [];
+
+const ctx = document.getElementById('stressChart').getContext('2d');
+const stressChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ["0-10","11-20","21-30","31-40","41-50","51-60","61-70","71-80","81-90","91-100","100+"],
+        datasets: [{
+            label: 'Number of Participants',
+            data: Array(11).fill(0),
+            backgroundColor: '#1f6feb'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend:{ display: false }},
+        scales: { y: { beginAtZero: true }, x: { title:{ display:true, text:'Stress % Range' } } }
+    }
+});
+
+function updateDashboard(snapshot) {
+    submissionsData = [];
+    tableBody.innerHTML = "";
+    let totalStress = 0;
+    const genderCount = {};
+    const ageCount = {};
+    const stressBuckets = Array(11).fill(0);
+
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        submissionsData.push(data);
+        const percent = data.percent || 0;
+        totalStress += percent;
+        genderCount[data.gender] = (genderCount[data.gender]||0)+1;
+        ageCount[data.ageGroup] = (ageCount[data.ageGroup]||0)+1;
+        const bucket = Math.min(Math.floor(percent/10), 10);
+        stressBuckets[bucket]++;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${data.name||'-'}</td>
+            <td>${data.gender||'-'}</td>
+            <td>${data.ageGroup||'-'}</td>
+            <td>${percent}</td>
+            <td>${data.category||'-'}</td>
+            <td>${data.createdAt? new Date(data.createdAt).toLocaleString():'-'}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+
+    // Update cards
+    document.getElementById("totalSubmissions").innerText = submissionsData.length;
+    document.getElementById("avgStress").innerText = submissionsData.length ? Math.round(totalStress/submissionsData.length)+'%' : '0%';
+    document.getElementById("genderDistribution").innerText = Object.entries(genderCount).map(([g,c])=>`${g}:${c}`).join(' | ');
+    document.getElementById("ageDistribution").innerText = Object.entries(ageCount).map(([a,c])=>`${a}:${c}`).join(' | ');
+
+    // Update chart
+    stressChart.data.datasets[0].data = stressBuckets;
+    stressChart.update();
+}
+
+// Real-time listener
+const q = query(collectionRef, orderBy("createdAt","desc"));
+onSnapshot(q, updateDashboard);
+
+function downloadCSV() {
+    if(!submissionsData.length) return alert("No submissions to download.");
+    const headers = ["Name","Gender","Age Group","Stress %","Category","Submitted At"];
+    const rows = submissionsData.map(d => [
+        d.name||'-', d.gender||'-', d.ageGroup||'-', d.percent||'-', d.category||'-', d.createdAt?new Date(d.createdAt).toLocaleString():'-'
+    ]);
+    const csvContent = [headers,...rows].map(e=>e.join(",")).join("\n");
+    const blob = new Blob([csvContent], {type:"text/csv;charset=utf-8;"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download","stress_test_submissions.csv");
+    link.click();
+}
+
+document.getElementById("downloadBtn").addEventListener("click", downloadCSV);
+</script>
+</body>
+</html>
