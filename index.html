@@ -2,53 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stress Dashboard — Live Stats</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stress Dashboard — Bhagavad Gita Insights</title>
 <style>
-  body{font-family:Arial, Helvetica, sans-serif;background:#f4f6fb;color:#111;margin:0;padding:20px;}
-  h1{text-align:center;color:#11436b;margin-bottom:4px;}
-  h2{color:#11436b;margin-top:24px;}
-  .card{background:#fff;padding:16px;margin-bottom:16px;border-radius:12px;box-shadow:0 8px 24px rgba(8,10,20,.06);}
-  table{width:100%;border-collapse:collapse;margin-top:12px;}
-  th,td{border:1px solid #e6eef7;padding:8px;text-align:center;}
-  th{background:#f1f7ff;}
-  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  @media(max-width:720px){.stats-grid{grid-template-columns:1fr;}}
+body { font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; margin:0; padding:0; background:#f4f6fb; color:#111; }
+.wrap { max-width:1200px; margin:20px auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.05); }
+h1 { text-align:center; color:#11436b; margin-bottom:16px; }
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px; }
+.card { background:#fefefe; padding:16px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+table { width:100%; border-collapse:collapse; margin-top:12px; }
+th, td { border:1px solid #e6eef7; padding:8px; text-align:center; }
+th { background:#f1f7ff; }
+.button { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; border:none; border-radius:8px; cursor:pointer; margin-top:12px; text-decoration:none; }
+.button:hover { background:#1150c7; }
+@media(max-width:800px){ .stats-grid{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
-<h1>Live Stress Dashboard</h1>
+<div class="wrap">
+  <h1>Stress Dashboard — Bhagavad Gita Insights</h1>
 
-<div class="card">
-  <h2>Community Stats</h2>
-  <p><strong>Total Tests Submitted:</strong> <span id="totalCount">0</span></p>
-  <p><strong>Distribution by Category:</strong></p>
-  <ul id="distribution"></ul>
-</div>
+  <div class="stats-grid">
+    <!-- Left: Total & Distribution -->
+    <div class="card">
+      <p><strong>Total Tests:</strong> <span id="totalCount">0</span></p>
+      <p><strong>Distribution:</strong></p>
+      <ul id="distribution" style="text-align:left;"></ul>
+      <button class="button" id="downloadCSV">📥 Download CSV</button>
+    </div>
 
-<div class="card stats-grid">
-  <div>
-    <h2>Average Stress by Age & Gender</h2>
-    <table>
-      <thead>
-        <tr><th>Gender</th><th>0–18</th><th>18–25</th><th>26–35</th><th>36+</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Male</td><td id="male-0-18">-</td><td id="male-18-25">-</td><td id="male-26-35">-</td><td id="male-36+">-</td></tr>
-        <tr><td>Female</td><td id="female-0-18">-</td><td id="female-18-25">-</td><td id="female-26-35">-</td><td id="female-36+">-</td></tr>
-      </tbody>
-    </table>
+    <!-- Right: Average Stress Table -->
+    <div class="card">
+      <p><strong>Average Stress % by Age & Gender</strong></p>
+      <table>
+        <thead>
+          <tr><th>Gender</th><th>0–18</th><th>18–25</th><th>26–35</th><th>36+</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Male</td><td id="male-0-18">-</td><td id="male-18-25">-</td><td id="male-26-35">-</td><td id="male-36+">-</td></tr>
+          <tr><td>Female</td><td id="female-0-18">-</td><td id="female-18-25">-</td><td id="female-26-35">-</td><td id="female-36+">-</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
-<!-- Firebase SDK -->
+<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-// --------------------
-// Firebase config
-// --------------------
 const firebaseConfig = {
   apiKey: "AIzaSyDvYmVBsufaspOcfHNOASnhprlgxMZb8_I",
   authDomain: "stresstestdb.firebaseapp.com",
@@ -61,24 +64,21 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const collectionRef = collection(db, "stressTestResults");
+const collectionRef = collection(db,"stressTestResults");
 
-// Helper to compute average
-const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)+'%' : '-';
-
-// Load and display stats
+// Load stats
 async function loadStats(){
   const docs = await getDocs(collectionRef);
   const rows = [];
   docs.forEach(d => rows.push(d.data()));
 
+  // Total
   const total = rows.length;
   document.getElementById("totalCount").innerText = total;
 
-  // Category distribution
+  // Distribution
   const dist = { Normal:0, Medium:0, High:0, "Very Risky":0 };
-  rows.forEach(r=>{ if(r.category) dist[r.category] = (dist[r.category]||0)+1; });
-
+  rows.forEach(r=>{ if(r.category) dist[r.category]=(dist[r.category]||0)+1; });
   const distEl = document.getElementById("distribution");
   distEl.innerHTML = `
     <li>Normal: ${dist.Normal} (${total? Math.round(dist.Normal/total*100):0}%)</li>
@@ -87,9 +87,9 @@ async function loadStats(){
     <li>Very Risky: ${dist["Very Risky"]} (${total? Math.round(dist["Very Risky"]/total*100):0}%)</li>
   `;
 
-  // Buckets by gender & age
+  // Averages
   const ageGroups = ["0-18","18-25","26-35","36+"];
-  const buckets = { male: {"0-18":[], "18-25":[], "26-35":[], "36+": []}, female: {"0-18":[], "18-25":[], "26-35":[], "36+": []} };
+  const buckets = { male:{"0-18":[], "18-25":[], "26-35":[], "36+": []}, female:{"0-18":[], "18-25":[], "26-35":[], "36+": []} };
 
   rows.forEach(r=>{
     let ag = r.ageGroup || "36+";
@@ -97,23 +97,44 @@ async function loadStats(){
     else if(ag==="18-25") ag="18-25";
     else if(ag==="26-35") ag="26-35";
     else ag="36+";
-    const g = (r.gender||"").toLowerCase().startsWith("f") ? "female":"male";
+    const g = (r.gender || "").toLowerCase().startsWith("f")?"female":"male";
     if(buckets[g] && buckets[g][ag]) buckets[g][ag].push(Number(r.percent||0));
   });
 
-  document.getElementById("male-0-18").innerText = avg(buckets.male["0-18"]);
-  document.getElementById("male-18-25").innerText = avg(buckets.male["18-25"]);
-  document.getElementById("male-26-35").innerText = avg(buckets.male["26-35"]);
-  document.getElementById("male-36+").innerText = avg(buckets.male["36+"]);
-
-  document.getElementById("female-0-18").innerText = avg(buckets.female["0-18"]);
-  document.getElementById("female-18-25").innerText = avg(buckets.female["18-25"]);
-  document.getElementById("female-26-35").innerText = avg(buckets.female["26-35"]);
-  document.getElementById("female-36+").innerText = avg(buckets.female["36+"]);
+  function avg(arr){ return arr.length? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)+"%":"-"; }
+  document.getElementById("male-0-18").innerText=avg(buckets.male["0-18"]);
+  document.getElementById("male-18-25").innerText=avg(buckets.male["18-25"]);
+  document.getElementById("male-26-35").innerText=avg(buckets.male["26-35"]);
+  document.getElementById("male-36+").innerText=avg(buckets.male["36+"]);
+  document.getElementById("female-0-18").innerText=avg(buckets.female["0-18"]);
+  document.getElementById("female-18-25").innerText=avg(buckets.female["18-25"]);
+  document.getElementById("female-26-35").innerText=avg(buckets.female["26-35"]);
+  document.getElementById("female-36+").innerText=avg(buckets.female["36+"]);
 }
 
-// Initial load
 loadStats();
+
+// Download CSV
+document.getElementById("downloadCSV").addEventListener("click", async ()=>{
+  const docs = await getDocs(collectionRef);
+  const rows = [];
+  docs.forEach(d=>rows.push(d.data()));
+  if(!rows.length){ alert("No data to download."); return; }
+
+  const csvRows = [];
+  const headers = Object.keys(rows[0]);
+  csvRows.push(headers.join(","));
+  rows.forEach(r=>{
+    csvRows.push(headers.map(h=>`"${r[h]??""}"`).join(","));
+  });
+
+  const blob = new Blob([csvRows.join("\n")], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="stress_dashboard.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
 </script>
 </body>
 </html>
