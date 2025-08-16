@@ -2,125 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stress Test Dashboard — Live Corporate View</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stress Dashboard — Live Stats</title>
 <style>
-body {
-    font-family: 'Inter', sans-serif;
-    margin: 0; padding: 0;
-    background: #f4f6fb;
-    color: #11436b;
-}
-header {
-    background: #1f6feb;
-    color: white;
-    padding: 20px;
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-.container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-.cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-.card {
-    flex: 1 1 220px;
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-.card h2 { margin: 0; font-size: 2rem; color: #1f6feb; }
-.card p { margin: 5px 0 0; font-weight: 500; color: #333; }
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 30px;
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-th, td {
-    padding: 12px;
-    text-align: center;
-    border-bottom: 1px solid #e6eef7;
-}
-th { background: #f1f7ff; font-weight: 600; color: #11436b; }
-tbody tr:hover { background: #f9fbff; }
-
-button {
-    padding: 10px 20px;
-    font-size: 1rem;
-    border-radius: 8px;
-    border: none;
-    background: #1f6feb;
-    color: white;
-    cursor: pointer;
-    margin-top: 20px;
-}
-button:hover { background: #155bb5; }
-
-.chart-container {
-    margin-top: 40px;
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
+  body{font-family:Arial, Helvetica, sans-serif;background:#f4f6fb;color:#111;margin:0;padding:20px;}
+  h1{text-align:center;color:#11436b;margin-bottom:4px;}
+  h2{color:#11436b;margin-top:24px;}
+  .card{background:#fff;padding:16px;margin-bottom:16px;border-radius:12px;box-shadow:0 8px 24px rgba(8,10,20,.06);}
+  table{width:100%;border-collapse:collapse;margin-top:12px;}
+  th,td{border:1px solid #e6eef7;padding:8px;text-align:center;}
+  th{background:#f1f7ff;}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:720px){.stats-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
-<header>Stress Test Dashboard — Live Updates</header>
-<div class="container">
-    <div class="cards">
-        <div class="card">
-            <h2 id="totalSubmissions">0</h2>
-            <p>Total Submissions</p>
-        </div>
-        <div class="card">
-            <h2 id="avgStress">0%</h2>
-            <p>Average Stress</p>
-        </div>
-        <div class="card">
-            <h2 id="genderDistribution">0</h2>
-            <p>Gender Count</p>
-        </div>
-        <div class="card">
-            <h2 id="ageDistribution">0</h2>
-            <p>Age Groups</p>
-        </div>
-    </div>
+<h1>Live Stress Dashboard</h1>
 
-    <div class="chart-container">
-        <canvas id="stressChart" height="100"></canvas>
-    </div>
-
-    <div style="text-align:center;">
-        <button id="downloadBtn">📥 Download CSV</button>
-    </div>
-
-    <table id="submissionsTable">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Gender</th>
-                <th>Age Group</th>
-                <th>Stress %</th>
-                <th>Category</th>
-                <th>Submitted At</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+<div class="card">
+  <h2>Community Stats</h2>
+  <p><strong>Total Tests Submitted:</strong> <span id="totalCount">0</span></p>
+  <p><strong>Distribution by Category:</strong></p>
+  <ul id="distribution"></ul>
 </div>
 
+<div class="card stats-grid">
+  <div>
+    <h2>Average Stress by Age & Gender</h2>
+    <table>
+      <thead>
+        <tr><th>Gender</th><th>0–18</th><th>18–25</th><th>26–35</th><th>36+</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Male</td><td id="male-0-18">-</td><td id="male-18-25">-</td><td id="male-26-35">-</td><td id="male-36+">-</td></tr>
+        <tr><td>Female</td><td id="female-0-18">-</td><td id="female-18-25">-</td><td id="female-26-35">-</td><td id="female-36+">-</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
+// --------------------
+// Firebase config
+// --------------------
 const firebaseConfig = {
   apiKey: "AIzaSyDvYmVBsufaspOcfHNOASnhprlgxMZb8_I",
   authDomain: "stresstestdb.firebaseapp.com",
@@ -135,87 +63,57 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const collectionRef = collection(db, "stressTestResults");
 
-const tableBody = document.querySelector("#submissionsTable tbody");
-let submissionsData = [];
+// Helper to compute average
+const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)+'%' : '-';
 
-const ctx = document.getElementById('stressChart').getContext('2d');
-const stressChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: ["0-10","11-20","21-30","31-40","41-50","51-60","61-70","71-80","81-90","91-100","100+"],
-        datasets: [{
-            label: 'Number of Participants',
-            data: Array(11).fill(0),
-            backgroundColor: '#1f6feb'
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend:{ display: false }},
-        scales: { y: { beginAtZero: true }, x: { title:{ display:true, text:'Stress % Range' } } }
-    }
-});
+// Load and display stats
+async function loadStats(){
+  const docs = await getDocs(collectionRef);
+  const rows = [];
+  docs.forEach(d => rows.push(d.data()));
 
-function updateDashboard(snapshot) {
-    submissionsData = [];
-    tableBody.innerHTML = "";
-    let totalStress = 0;
-    const genderCount = {};
-    const ageCount = {};
-    const stressBuckets = Array(11).fill(0);
+  const total = rows.length;
+  document.getElementById("totalCount").innerText = total;
 
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        submissionsData.push(data);
-        const percent = data.percent || 0;
-        totalStress += percent;
-        genderCount[data.gender] = (genderCount[data.gender]||0)+1;
-        ageCount[data.ageGroup] = (ageCount[data.ageGroup]||0)+1;
-        const bucket = Math.min(Math.floor(percent/10), 10);
-        stressBuckets[bucket]++;
+  // Category distribution
+  const dist = { Normal:0, Medium:0, High:0, "Very Risky":0 };
+  rows.forEach(r=>{ if(r.category) dist[r.category] = (dist[r.category]||0)+1; });
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${data.name||'-'}</td>
-            <td>${data.gender||'-'}</td>
-            <td>${data.ageGroup||'-'}</td>
-            <td>${percent}</td>
-            <td>${data.category||'-'}</td>
-            <td>${data.createdAt? new Date(data.createdAt).toLocaleString():'-'}</td>
-        `;
-        tableBody.appendChild(tr);
-    });
+  const distEl = document.getElementById("distribution");
+  distEl.innerHTML = `
+    <li>Normal: ${dist.Normal} (${total? Math.round(dist.Normal/total*100):0}%)</li>
+    <li>Medium: ${dist.Medium} (${total? Math.round(dist.Medium/total*100):0}%)</li>
+    <li>High: ${dist.High} (${total? Math.round(dist.High/total*100):0}%)</li>
+    <li>Very Risky: ${dist["Very Risky"]} (${total? Math.round(dist["Very Risky"]/total*100):0}%)</li>
+  `;
 
-    // Update cards
-    document.getElementById("totalSubmissions").innerText = submissionsData.length;
-    document.getElementById("avgStress").innerText = submissionsData.length ? Math.round(totalStress/submissionsData.length)+'%' : '0%';
-    document.getElementById("genderDistribution").innerText = Object.entries(genderCount).map(([g,c])=>`${g}:${c}`).join(' | ');
-    document.getElementById("ageDistribution").innerText = Object.entries(ageCount).map(([a,c])=>`${a}:${c}`).join(' | ');
+  // Buckets by gender & age
+  const ageGroups = ["0-18","18-25","26-35","36+"];
+  const buckets = { male: {"0-18":[], "18-25":[], "26-35":[], "36+": []}, female: {"0-18":[], "18-25":[], "26-35":[], "36+": []} };
 
-    // Update chart
-    stressChart.data.datasets[0].data = stressBuckets;
-    stressChart.update();
+  rows.forEach(r=>{
+    let ag = r.ageGroup || "36+";
+    if(ag==="0-18" || ag==="Below 18") ag="0-18";
+    else if(ag==="18-25") ag="18-25";
+    else if(ag==="26-35") ag="26-35";
+    else ag="36+";
+    const g = (r.gender||"").toLowerCase().startsWith("f") ? "female":"male";
+    if(buckets[g] && buckets[g][ag]) buckets[g][ag].push(Number(r.percent||0));
+  });
+
+  document.getElementById("male-0-18").innerText = avg(buckets.male["0-18"]);
+  document.getElementById("male-18-25").innerText = avg(buckets.male["18-25"]);
+  document.getElementById("male-26-35").innerText = avg(buckets.male["26-35"]);
+  document.getElementById("male-36+").innerText = avg(buckets.male["36+"]);
+
+  document.getElementById("female-0-18").innerText = avg(buckets.female["0-18"]);
+  document.getElementById("female-18-25").innerText = avg(buckets.female["18-25"]);
+  document.getElementById("female-26-35").innerText = avg(buckets.female["26-35"]);
+  document.getElementById("female-36+").innerText = avg(buckets.female["36+"]);
 }
 
-// Real-time listener
-const q = query(collectionRef, orderBy("createdAt","desc"));
-onSnapshot(q, updateDashboard);
-
-function downloadCSV() {
-    if(!submissionsData.length) return alert("No submissions to download.");
-    const headers = ["Name","Gender","Age Group","Stress %","Category","Submitted At"];
-    const rows = submissionsData.map(d => [
-        d.name||'-', d.gender||'-', d.ageGroup||'-', d.percent||'-', d.category||'-', d.createdAt?new Date(d.createdAt).toLocaleString():'-'
-    ]);
-    const csvContent = [headers,...rows].map(e=>e.join(",")).join("\n");
-    const blob = new Blob([csvContent], {type:"text/csv;charset=utf-8;"});
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download","stress_test_submissions.csv");
-    link.click();
-}
-
-document.getElementById("downloadBtn").addEventListener("click", downloadCSV);
+// Initial load
+loadStats();
 </script>
 </body>
 </html>
